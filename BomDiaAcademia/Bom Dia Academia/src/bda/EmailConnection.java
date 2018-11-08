@@ -1,7 +1,9 @@
 package bda;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Properties;
 import javax.mail.*;
 import javax.mail.internet.InternetAddress;
@@ -48,6 +50,7 @@ public class EmailConnection {
 	}
 	
 	public void receiveMail() {
+		List<InformationEntry> information_entry_list = new ArrayList<InformationEntry>();
 		try {
 			Properties properties = new Properties();
 			properties.setProperty("mail.store.protocol", "imaps");
@@ -60,13 +63,29 @@ public class EmailConnection {
 			Message messages[] = emailFolder.getMessages();
 			//System.out.println(emailFolder.getMessageCount());
 			
-			for(int i = messages.length - 1 ; i > 0 ; i--) {
-				System.out.println("Email Number " + (i+1) + ".");
-				System.out.println("From: " + messages[i].getFrom()[0]);
-				System.out.println("Sent date: " + messages[i].getSentDate());
-				System.out.println("Subject: " + messages[i].getSubject());
-				System.out.println("Message: " + getTextFromMessage(messages[i]));
+			Date date;
+			Service service;
+			String writerName;
+			String subject;
+			String content;
+			
+			for(int i = messages.length - 1 ; i > messages.length - 4 ; i--) {
+				date = messages[i].getSentDate();
+				service = Service.EMAIL;
+				writerName = messages[i].getFrom()[0].toString();
+				subject = messages[i].getSubject();
+				content = getTextFromMessage(messages[i]);
+				
+				information_entry_list.add(new InformationEntry(date, service, writerName, subject, content));
 			}
+			
+			try {
+				ReadAndWriteXMLFile.CreateInformationEntryXMLFile(information_entry_list); // require work, it has errors!
+				System.out.println("Created the XML file for the Information Entrys.");
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
 			// closing emailFolder and emailStore
 			emailFolder.close(false);
 			emailStore.close();
@@ -77,6 +96,24 @@ public class EmailConnection {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
+		try {
+			if(information_entry_list.isEmpty()) {
+				information_entry_list = ReadAndWriteXMLFile.ReadInformationEntryXMLFile();
+				System.out.println("Loaded the Information Entrys from the XML.");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		for(int i = 0 ; i < information_entry_list.size() ; i++) { // should return this array instead for it to be displayed on the UI
+			System.out.println("Email Number " + (i+1) + ".");
+			System.out.println("From: " + information_entry_list.get(i).getWriterName());
+			System.out.println("Sent date: " + information_entry_list.get(i).getDate());
+			System.out.println("Subject: " + information_entry_list.get(i).getSubject());
+			System.out.println("Message: " + information_entry_list.get(i).getContent());
+		}
+		
 	}
 	
 	public void sendEmail(String sendEmailTo, String subject, String message) {
